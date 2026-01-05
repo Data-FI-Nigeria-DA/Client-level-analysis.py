@@ -159,12 +159,62 @@ def compare_documents(df1, df2):
 
 
 
+def generate_summary_sheet(df, summary_output_path):
+
+    summary_data = []
+
+    match_cols = [c for c in df.columns if str(c).lower.endswith('_match')]
+
+    for col in match_cols:
+        clean_name = str(col).replace('_match', '').replace('_', '').strip()
+
+        counts = df[col].value_counts()
+
+        match_count = counts.get('Match', 0)
+        no_match_count = counts.get('No Match', 0)
+
+        summary_data.append({
+            'Column Name': clean_name,
+            'Count of Match': match_count,
+            'Count of No Match': no_match_count
+        })
+
+    #creating dataframe and save
+    summary_df = pd.DataFrame(summary_data)
+    summary_df.to_excel(summary_output_path, index=False)
+    print(f"Summary report saved to {summary_output_path}")
+
+
+
 # Combine documents
 df_Client = combine_documents(folder_Client)
 df_centralsync = combine_documents(folder_centralsync)
 
 # Compare the two combined documents
 client_level_analysis = compare_documents(df_Client, df_centralsync)
+
+
+#Generate the summary Dtaframe
+def get_summary_df(df):
+
+    summary_data = []
+
+    match_cols = [c for c in df.columns if str(c).lower().endswith('_match')]
+
+    for col in match_cols:
+        clean_name = str(col).replace('_match', '').replace('_', '').strip()
+        counts = df[col].value_counts()
+
+        summary_data.append({
+            'Column Name': clean_name,
+            'Count of Match': counts.get('Match', 0),
+            'Count of No Match': counts.get('No Match', 0),
+            'Count of N/A' : counts.get('N/A', 0)
+        })
+    return pd.DataFrame(summary_data)
+
+summary_df = get_summary_df(client_level_analysis)
+
 
 # Save the result to an Excel file with multiple sheets
 # Determine the maximum number of rows per sheet (Excel limit is around 1,048,576)
@@ -179,8 +229,11 @@ with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
         start_row = i * rows_per_sheet
         end_row = min((i + 1) * rows_per_sheet, len(client_level_analysis))
         sheet_name = f'Sheet{i+1}'
-        client_level_analysis[start_row:end_row].to_excel(writer, sheet_name=sheet_name, index=False)
+        client_level_analysis[start_row:end_row].to_excel(writer, sheet_name='Comparison', index=False)
 
-print(f'Comparison result saved to {output_path} with {num_sheets} sheets.')
+    summary_df.to_excel(writer, sheet_name = 'Match Summary', index=False)
+
+print(f'Comparison result saved to {output_path}') 
+
 
 
